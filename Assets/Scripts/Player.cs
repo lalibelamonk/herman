@@ -8,13 +8,17 @@ public class Player : MovingObject {
 	public float accelerateForce = 40;
 	public float startSpeed;
 
+	public bool NSFW;
+
 	private Animator animator;
 	private int armor;
 	private bool isDead;
 	private float maxSpeed = 6f;
 
 	protected override void Awake () {
-		animator = GetComponent<Animator>();
+		if (NSFW) {
+			animator = GetComponent<Animator>();
+		}
 		base.Awake ();
 	}
 
@@ -33,12 +37,16 @@ public class Player : MovingObject {
 	}
 
 	private void accelerate (float mag, float force) {
-		animator.SetBool ("isAccelerating", true);
+		if (NSFW) {
+			animator.SetBool ("isAccelerating", true);
+		}
 		moveByForce (0f, 1f, mag * force);
 	}
 
 	private void deccelerate () {
-		animator.SetBool ("isAccelerating", false);
+		if (NSFW) {
+			animator.SetBool ("isAccelerating", false);
+		}
 	}
 	
 	private void moveByForce (float xShare, float yShare, float magnitude) {
@@ -55,14 +63,16 @@ public class Player : MovingObject {
 	// called on collisions with walls
 	public void checkIfGameOver () {
 		if (armor <= 0) {
-			isDead = true;
-			rb2D.isKinematic = true;
-			animator.enabled = false;
 			restart();
 		}
 	}
 	
 	private void restart() {
+		if (NSFW) {
+			animator.enabled = false;
+		}
+		isDead = true;
+		rb2D.isKinematic = true;
 		Application.LoadLevel(Application.loadedLevel);
 	}
 	
