@@ -17,8 +17,8 @@ public class BoardManager : MonoBehaviour {
 	//private Transform boardHolder;		// Not exactly sure why this is needed, I think just as a common location origin...
 	public Queue <Wall> upperWalls = new Queue<Wall>();		// All upperwalls stored in this queue
 	public Queue <Wall> lowerWalls = new Queue<Wall>();		// Same for lower walls
-	private float lastX;										// keep track of world position to spawn next wall
-	private float lowerLimit, upperLimit;						// min and max height for spawning walls
+	private float lastX;									// keep track of world position to spawn next wall
+	private float lowerLimit, upperLimit, maxHeight;		// max height of tunnel, and the upper and lower bounds
 	private float screenWidth;
 	private Vector3 spriteSize;
 
@@ -37,6 +37,7 @@ public class BoardManager : MonoBehaviour {
 		screenWidth = topRight.x - topLeft.x;
 		lowerLimit = bottomLeft.y + (spriteSize.y / 2);
 		upperLimit = topLeft.y - (spriteSize.y / 2);
+		maxHeight = upperLimit - lowerLimit;
 
 		// Fill the floor and ceiling with walls across the length of the screen
 		for(lastX = topLeft.x; lastX < screenWidth; lastX += spriteSize.x) {
@@ -60,7 +61,7 @@ public class BoardManager : MonoBehaviour {
 	private Vector3 getSpriteSize() {
 		Wall wall = Instantiate(wallPrefab, new Vector2 (-10, -10), Quaternion.identity) as Wall;
 		Vector3 spriteWidth = wall.GetComponent<SpriteRenderer>().bounds.size;
-		Destroy(wall);
+		Destroy(wall, 0f);
 		return spriteWidth;
 	}
 
@@ -70,21 +71,31 @@ public class BoardManager : MonoBehaviour {
 	public void setupScene (int level) {
 		boardSetup();
 	}
-	
-	private float newYPosition(Wall lastWall){
-		float nextPos = Random.Range (0, .5f) + lastWall.transform.position.y;
-		float sign = Random.Range (0, 1);
-		if (sign < .5) {
-			nextPos = nextPos * -1f;
-		}
-		if (nextPos > upperLimit){
+
+
+	private float newYPosition(float currentPos, float referencePos){
+		float newPosition;
+		// for an upper wall
+		if (currentPos > referencePos) {
+			newPosition = Random.Range (-.3f, .3f) + currentPos;
+			if (newPosition < upperLimit) {
+				return newPosition;
+			}
+			//return upper
 			return upperLimit;
-		} else if (nextPos < lowerLimit) {
-			return lowerLimit;
-		} else {
-			return nextPos;
 		}
-		
+		// for a lower wall
+		else {
+			newPosition = Random.Range (-.3f, .3f) + currentPos;
+			// we want to keep the tunnel a certain max distance apart, correct if necessary to be maximum height
+			if ((referencePos - newPosition) > maxHeight) {
+				return referencePos - maxHeight;
+			} else if (newPosition > lowerLimit) {
+				return newPosition;
+			}
+			// return low limit if attempt to go below limit
+			return lowerLimit;
+		}
 	}
 
 	/**
@@ -95,17 +106,20 @@ public class BoardManager : MonoBehaviour {
 	void Update () {
 		Wall lastUpperWall = upperWalls.Peek ();
 		Wall lastLowerWall = lowerWalls.Peek ();
+
+		// remove wall and place up front when it becomes invisible
 		if (!lastUpperWall.GetComponent<SpriteRenderer>().isVisible) {
 			lastUpperWall = upperWalls.Dequeue ();
 			//lastUpperWall.selectNewSprite(); TODO
-			lastUpperWall.transform.position = new Vector2 (lastX + spriteSize.x, newYPosition(lastUpperWall));
-			lastUpperWall.transform.Rotate (180, 0, 0);
-			upperWalls.Enqueue (lastUpperWall);
-
 			lastLowerWall = lowerWalls.Dequeue ();
 			//lastUpperWall.selectNewSprite(); TODO
-			lastLowerWall.transform.position = new Vector2 (lastX + spriteSize.x, newYPosition(lastLowerWall));
-			lastLowerWall.transform.Rotate (180, 0, 0);
+
+			lastUpperWall.transform.position = 
+				new Vector2 (lastX + spriteSize.x, newYPosition(lastUpperWall.transform.position.y, lastLowerWall.transform.position.y));
+			upperWalls.Enqueue (lastUpperWall);
+
+			lastLowerWall.transform.position = 
+				new Vector2 (lastX + spriteSize.x, newYPosition(lastLowerWall.transform.position.y, lastUpperWall.transform.position.y));
 			lowerWalls.Enqueue(lastLowerWall);
 			lastX += spriteSize.x;
 		}
